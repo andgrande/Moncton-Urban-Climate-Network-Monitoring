@@ -11,6 +11,8 @@ Languages used: **Python** and **R**
 
 Further tasks should provide data handling and graph visualization.
 
+In order to run the **FileGenerationFromDataExtraction.py** script an API Key will be needed in order to connect with wunderground website. Rename the **template.env** file to **.env** and replace the API Key value there.
+
 
 ## License
 
