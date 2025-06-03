@@ -7,7 +7,8 @@ Languages used: **Python** and **R**
 - **CheckMissingDates.R** script handles the identification of data failures and organization of the weather data set from 1870 to 2024 for 159 weathe rstations in new Brunswick.
 - **FormatDatesFromCsv.R** script helps to separate and format dates for better readability in Excel.
 - **FileGenerationFromDataExtraction.py** script handles the Data extraction, cleaning and analysis on the hourly data from 10 weather stations located in the Great Moncton area, NB and deliver it in a csv file. - API Data source: www.wunderground.com
-- **DataConsistencyReport.py** script handes the analysis of the confireliability of the extracted data.
+- **DataConsistencyReport.py** script handles the analysis of the reliability of the extracted data.
+- **CheckAndChangeVariablesTypeFormat.py** script cleans and format an already extrated data for better data manipulation.
 
 Further tasks should provide data handling and graph visualization.
 
