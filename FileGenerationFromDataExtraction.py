@@ -57,6 +57,9 @@ print()
 # file = open(file_name, mode='w', newline='')
 # csv_writer = csv.writer(file)
 
+
+# BELOW IS THE ORIGINAL AND DEPRECATED FUNCTION THAT HANDLES CSV CREATION
+# SHOULD BE REMOVED BEFORE RELEASE
 def handle_csv_creation(json_data, csv_writer, api_date):
      observations = json_data['observations']
 
@@ -79,7 +82,7 @@ def handle_csv_creation(json_data, csv_writer, api_date):
 #
 def local_testing():
      main_data = {}
-     with open(r"C:\Users\anderson.grande\Documents\py\Ge\wu\tempDelete\hourly.json") as json_file:
+     with open(r"C:\Users\anderson.grande\Documents\py\Ge\wu\tempDelete\daily.json") as json_file:
           main_data = json.load(json_file)
           # handle_csv_creation(data, csv_writer, api_date = '20230103')
           return main_data
@@ -96,6 +99,9 @@ def handle_populate_datasheet(json_data):
           metric_tag = row['metric']
           row.update(metric_tag)
           row.pop('metric')
+
+          # SHOULD I INCLUDE A VALIDATION HERE? CURRENTLY IT WILL APPEND ANY ROWS, EVEN IF THE DATE IS WRONG
+          # if row['obsTimeLocal'].startswith(api_date):
 
           datasheet_values.append(row)
 
@@ -114,20 +120,19 @@ for api_date in date_range_list:
                # Need to enhance error handling
                break
 
-
-
 df = pd.DataFrame(datasheet_values)
 
-
-df.insert(4, 'hour', df.obsTimeLocal.astype('datetime64[ns]').dt.hour)  # Extract hour from obsTimeLocal'])
-# df['hour'] = df.obsTimeLocal.astype('datetime64[ns]').dt.hour
-df['bdate'] = df.obsTimeLocal.astype('datetime64[ns]').dt.date
+if data_type == 'hourly':
+     df.insert(4, 'hour', df.obsTimeLocal.astype('datetime64[ns]').dt.hour)  # Extract Hour from obsTimeLocal'
+df['bdate'] = df.obsTimeLocal.astype('datetime64[ns]').dt.date # Extract Date from obsTimeLocal'
 
 date_range_list = pd.date_range(date_start_date, date_end_date).strftime('%Y-%m-%d').tolist()
 date_range_list = pd.to_datetime(date_range_list, format='%Y-%m-%d').date.tolist()
 hours_range_list = range(0, 24)
 
-def fix_missing_dates(df, date_range_list, station_list):
+# This function will fix the missing hourly dates for each station
+# It will add rows with the missing hours for each date and station
+def fix_missing_hourly_dates(df, date_range_list, station_list):
      for date in date_range_list:
           for station in station_list:
                for hour in hours_range_list:
@@ -142,19 +147,31 @@ def fix_missing_dates(df, date_range_list, station_list):
                          # print("NAO EXISTE ", hour)
      return df
 
-if data_type == 'hourly':
-     df = fix_missing_dates(df, date_range_list, station_list)
+# This function will fix the missing daily dates for each station
+# It will add rows with the missing dates for each station
+def fix_missing_daily_dates(df, date_range_list, station_list):
+     for date in date_range_list:
+          for station in station_list:
+               dft = df[(df['stationID'] == station) & (df['bdate'] == date)]
+               if dft.empty:
+                    dftd = datetime.datetime.combine(date, datetime.time(0, 0))
+                    dfTemp = pd.DataFrame({'stationID': [station], 'obsTimeLocal': [dftd]})
+                    df = pd.concat([df, dfTemp], ignore_index=True)
+     return df
 
+# Check if the data type is hourly or daily and fix the missing dates accordingly
+# Treatment is different for hourly and daily data
+if data_type == 'hourly':
+     df = fix_missing_hourly_dates(df, date_range_list, station_list)
+else: df = fix_missing_daily_dates(df, date_range_list, station_list)
+
+# Convert obsTimeLocal to datetime and sort the DataFrame
 df['obsTimeLocal'] = pd.to_datetime(df['obsTimeLocal'])
 
-# This is broken
+# Sort the DataFrame by stationID and obsTimeLocal
 df = df.sort_values(by=['stationID', 'obsTimeLocal']).reset_index(drop=True)
 
-# for api_date in date_range_list:
-#      for station in station_list:
-#           # if data_type == 'hourly':
-#           df[df['obsTimeLocal'].str.startswith(api_date)] = station
-
+# Save file to CSV
 df.to_csv('{}'.format(file_name), index=False)
 
 print('\nNew file "{}" created.\n'.format(file_name))
