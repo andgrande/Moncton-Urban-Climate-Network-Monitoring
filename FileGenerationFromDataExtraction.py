@@ -4,6 +4,7 @@ import requests
 import json
 import csv
 import datetime
+import time
 import pandas as pd
 
 # load_dotenv()
@@ -12,7 +13,10 @@ import pandas as pd
 # if api_key is None: 
 #      api_key = input("Input your API KEY: ")
 
+# https://api.weather.com/v2/pws/history/hourly?stationId=IMONCT51&format=json&units=m&date=20241217&numericPrecision=decimal&apiKey=096ef67eabe14c8daef67eabe1cc8d05
+
 api_key = "096ef67eabe14c8daef67eabe1cc8d05"
+api_has_reached_limit = False
 print()
 # data_type = 'hourly' # can be 'daily', 'hourly', or 'all'
 data_type_option = input("Choose frequency of observations. Press 1 for 'Hourly' or 2 for 'Daily': ")
@@ -51,6 +55,7 @@ else: date_end_date = default_end_date
 date_range_list = pd.date_range(date_start_date, date_end_date).strftime('%Y%m%d').tolist()
 
 file_name = '{station}_{start_date}-{end_date}.csv'.format(station = "GMA", start_date = date_start_date, end_date = date_end_date)
+print('--'*30)
 print()
 # LOCAL TESTING CODE - without calling the API
 #
@@ -105,26 +110,50 @@ def handle_populate_datasheet(json_data):
 
           datasheet_values.append(row)
 
-# failure_counter = 0
+failure_counter = 0
+requests_counter = 0
 for api_date in date_range_list:
+     if api_has_reached_limit: break
      for station in station_list:
+          if api_has_reached_limit: break
           # if failure_counter > len(station_list): break
           try:
                # uncomment the next two lines to use the API
                response = requests.get("https://api.weather.com/v2/pws/history/{data_type}?stationId={station}&format=json&units=m&date={api_date}&numericPrecision=decimal&apiKey={api_key}".format(data_type = data_type, station = station, api_date = api_date, api_key = api_key))
                json_data = response.json()
                # json_data = local_testing()  # Use this line for local testing
+               print(response.status_code)
+               if not response.status_code == 200:
+                    raise Exception("API request failed with status code: {}".format(response.status_code))
+               requests_counter += 1
                handle_populate_datasheet(json_data)
                print("Handled {} at {}".format(station, api_date))
-          except: 
-               # Need to enhance error handling
-               break
+          except Exception as e:
+               print("\nError processing station {} for date {}: {}".format(station, api_date, e))
+               print()
+               failure_counter += 1 
+               if failure_counter > requests_counter or failure_counter > 2:
+                    print("----------------------------------------------------")
+                    print("\nToo many equal failures, stopping the process now.\n")
+                    print("----------------------------------------------------")
+                    api_has_reached_limit = True
+               else:
+                    continue
 
 df = pd.DataFrame(datasheet_values)
+try:
+     # This checks if the DataFrame is empty
+     if df.empty:
+          raise ValueError("No data retrieved for the specified date range and stations.")
+     if data_type == 'hourly':
+          df.insert(4, 'hour', df.obsTimeLocal.astype('datetime64[ns]').dt.hour)  # Extract Hour from obsTimeLocal'
+     df['bdate'] = df.obsTimeLocal.astype('datetime64[ns]').dt.date # Extract Date from obsTimeLocal'
+except ValueError as e:
+     print("Apparently there was an error fetching data from the API: \n", e)
+     print("Please check the API key usage limit for the day.")
+     # exit()
 
-if data_type == 'hourly':
-     df.insert(4, 'hour', df.obsTimeLocal.astype('datetime64[ns]').dt.hour)  # Extract Hour from obsTimeLocal'
-df['bdate'] = df.obsTimeLocal.astype('datetime64[ns]').dt.date # Extract Date from obsTimeLocal'
+
 
 date_range_list = pd.date_range(date_start_date, date_end_date).strftime('%Y-%m-%d').tolist()
 date_range_list = pd.to_datetime(date_range_list, format='%Y-%m-%d').date.tolist()
@@ -161,21 +190,35 @@ def fix_missing_daily_dates(df, date_range_list, station_list):
 
 # Check if the data type is hourly or daily and fix the missing dates accordingly
 # Treatment is different for hourly and daily data
-if data_type == 'hourly':
-     df = fix_missing_hourly_dates(df, date_range_list, station_list)
-else: df = fix_missing_daily_dates(df, date_range_list, station_list)
+try:
+     if data_type == 'hourly':
+          df = fix_missing_hourly_dates(df, date_range_list, station_list)
+     else: df = fix_missing_daily_dates(df, date_range_list, station_list)
 
-# Convert obsTimeLocal to datetime and sort the DataFrame
-df['obsTimeLocal'] = pd.to_datetime(df['obsTimeLocal'])
+     # Convert obsTimeLocal to datetime and sort the DataFrame
+     df['obsTimeLocal'] = pd.to_datetime(df['obsTimeLocal'])
 
-# Sort the DataFrame by stationID and obsTimeLocal
-df = df.sort_values(by=['stationID', 'obsTimeLocal']).reset_index(drop=True)
+     # Sort the DataFrame by stationID and obsTimeLocal
+     df = df.sort_values(by=['stationID', 'obsTimeLocal']).reset_index(drop=True)
+except Exception as e:
+     try:
+          # print("Error in retrieving files \n", e)
+          print()
+     except Exception:
+          pass
+
 
 # Save file to CSV
 df.to_csv('{}'.format(file_name), index=False)
-
+time.sleep(2)  # Just to ensure the file is saved before printing the message
 print('\nNew file "{}" created.\n'.format(file_name))
+print('\nTotal days in the range: ', len(date_range_list))
+print('Total stations extracted: ', len(station_list))
+print('\nTotal success requests: ', requests_counter)
+if api_has_reached_limit:
+     print('Total requests failed before quitting process: ', failure_counter)
 # print(counter)
 # print(len(datasheet_values))
 
+print()
 sair = input("Press any key to exit...")
