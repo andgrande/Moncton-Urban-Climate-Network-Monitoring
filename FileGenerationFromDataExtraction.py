@@ -13,17 +13,16 @@ import pandas as pd
 # if api_key is None: 
 #      api_key = input("Input your API KEY: ")
 
-# https://api.weather.com/v2/pws/history/hourly?stationId=IMONCT51&format=json&units=m&date=20241217&numericPrecision=decimal&apiKey=096ef67eabe14c8daef67eabe1cc8d05
-
-api_key = "096ef67eabe14c8daef67eabe1cc8d05"
+api_key = "a4d35f6af53c4f12935f6af53c8f12a8"
 api_has_reached_limit = False
 print()
+
 # data_type = 'hourly' # can be 'daily', 'hourly', or 'all'
 data_type_option = input("Choose frequency of observations. Press 1 for 'Hourly' or 2 for 'Daily': ")
 data_type = 'hourly' if data_type_option == '1' else 'daily'
 
-default_start_date = "20230101"
-default_end_date = "20250531"
+default_start_date = "2023-01-01"
+default_end_date = datetime.datetime.now().date().strftime("%Y-%m-%d")
 # station_list = ['IDIEPP3', 'IDIEPP11', 'IRIVER76', 'IRIVER4', 'IRIVER28', 'IMONCT37', 'IMONCT20', 'INEWBRUN43', 'IMONCT23', 'IMONCT38']
 stations = input("Input the stations (comma separated), like 'IDIEPP11, IRIVER76, IMONCT20': ")
 
@@ -39,24 +38,24 @@ counter = {
      'failure_at': []
 }
 
-print('\nEnter START DATE (YYYMMDD) for the extraction: (Press ENTER for "2023-01-01")')
+print('\nEnter START DATE (YYYMMDD) for the extraction: (Press ENTER for "{}")'.format(default_start_date))
 input_date = input().format('%Y%m%d')
 if input_date:
      date_start_date = input_date.replace("-","")
-else: date_start_date = default_start_date
+else: date_start_date = default_start_date.replace("-","")
 
-print('\nEnter LAST DATE (YYYMMDD) for the extraction: (Press ENTER for "2025-05-31")')
+print('\nEnter LAST DATE (YYYMMDD) for the extraction: (Press ENTER for "{}")'.format(default_end_date))
 input_date = input().format('%Y%m%d')
 if input_date:
      date_end_date = input_date.replace("-","")
-else: date_end_date = default_end_date
+else: date_end_date = default_end_date.replace("-","")
 
-# date_end_date = datetime.datetime.now().strftime('%Y%m%d')
 date_range_list = pd.date_range(date_start_date, date_end_date).strftime('%Y%m%d').tolist()
 
 file_name = '{station}_{start_date}-{end_date}.csv'.format(station = "GMA", start_date = date_start_date, end_date = date_end_date)
 print('--'*30)
 print()
+time.sleep(2)
 # LOCAL TESTING CODE - without calling the API
 #
 # file = open(file_name, mode='w', newline='')
